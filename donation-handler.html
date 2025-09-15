@@ -204,6 +204,42 @@
         </div>
     </div>
 
-    <script src="donation-handler.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const connectBtn = document.getElementById('connect-btn');
+            const donateBtn = document.getElementById('donate-btn');
+            const walletAddressInput = document.getElementById('wallet-address');
+            const donationForm = document.getElementById('donation-form');
+            const thankYou = document.getElementById('thank-you');
+
+            // Simulate wallet connection
+            connectBtn.addEventListener('click', function() {
+                walletAddressInput.value = '0x742d35Cc6634C893292...';
+                connectBtn.textContent = 'Connected';
+                connectBtn.style.backgroundColor = '#28a745';
+                connectBtn.disabled = true;
+            });
+
+            // Handle donation submission
+            donateBtn.addEventListener('click', function() {
+                const name = document.getElementById('name').value;
+                const email = document.getElementById('email').value;
+                const amount = document.getElementById('amount').value;
+                const wallet = walletAddressInput.value;
+
+                // Simple validation
+                if (!name || !email || !amount || !wallet) {
+                    alert('Please fill all fields and connect or enter your wallet address');
+                    return;
+                }
+
+                // Show thank you message
+                donationForm.style.display = 'none';
+                thankYou.style.display = 'block';
+
+                // In a real application, you would process the donation here
+            });
+        });
+    </script>
 </body>
 </html>
