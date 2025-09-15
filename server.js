@@ -141,6 +141,25 @@ initializeDatabase().then(() => {
     });
     
     // CAMPAIGN & DONATION ENDPOINTS (Updated)
+    // Search campaign by 16-character short ID
+    app.get('/api/campaigns/short/:shortId', async (req, res) => {
+        const { shortId } = req.params;
+        if (!shortId || shortId.length !== 16) {
+            return res.status(400).json({ error: 'Short ID must be 16 characters.' });
+        }
+        try {
+            // Remove dashes from UUID and compare first 16 chars
+            const query = `SELECT * FROM campaigns WHERE REPLACE(campaign_id::text, '-', '') LIKE $1 || '%' LIMIT 1`;
+            const result = await pool.query(query, [shortId]);
+            if (result.rows.length === 0) {
+                return res.status(404).json({ error: 'Campaign not found.' });
+            }
+            res.json(result.rows[0]);
+        } catch (err) {
+            console.error('Error searching campaign by short ID:', err);
+            res.status(500).json({ error: 'Database error searching campaign.' });
+        }
+    });
     app.get('/api/campaigns', async (req, res) => {
         try {
             const query = `
@@ -287,6 +306,32 @@ initializeDatabase().then(() => {
     });
 
     server.listen(port, () => { console.log(`Server running on http://localhost:${port}`); });
+    // Endpoint to record and track a transaction
+    app.post('/api/track-transaction', async (req, res) => {
+        const {
+            transaction_hash,
+            from_address,
+            to_address,
+            amount,
+            status = 'pending',
+            block_number,
+            gas_used,
+            transaction_fee,
+            error
+        } = req.body;
+        try {
+            const result = await pool.query(
+                `INSERT INTO transactions (
+                    transaction_hash, from_address, to_address, amount, status, block_number, gas_used, transaction_fee, error
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+                [transaction_hash, from_address, to_address, amount, status, block_number, gas_used, transaction_fee, error]
+            );
+            res.status(201).json({ success: true, transaction: result.rows[0] });
+        } catch (err) {
+            console.error('Error tracking transaction:', err);
+            res.status(500).json({ error: 'Database error tracking transaction.' });
+        }
+    });
     // Endpoint to provide available transaction types and statuses for dropdowns
     app.get('/api/transaction-options', async (req, res) => {
         try {
@@ -302,6 +347,25 @@ initializeDatabase().then(() => {
         }
     });
     // Transaction search endpoint
+    // Search transaction by 16-character short ID
+    app.get('/api/transactions/short/:shortId', async (req, res) => {
+        const { shortId } = req.params;
+        if (!shortId || shortId.length !== 16) {
+            return res.status(400).json({ error: 'Short ID must be 16 characters.' });
+        }
+        try {
+            // Remove dashes from UUID and compare first 16 chars
+            const query = `SELECT * FROM transactions WHERE REPLACE(transaction_id::text, '-', '') LIKE $1 || '%' LIMIT 1`;
+            const result = await pool.query(query, [shortId]);
+            if (result.rows.length === 0) {
+                return res.status(404).json({ error: 'Transaction not found.' });
+            }
+            res.json(result.rows[0]);
+        } catch (err) {
+            console.error('Error searching transaction by short ID:', err);
+            res.status(500).json({ error: 'Database error searching transaction.' });
+        }
+    });
     app.get('/api/transactions', async (req, res) => {
         // Query params: search, type, status, date
         const { search = '', type = 'all', status = 'all', date = 'all', page = 1, pageSize = 10 } = req.query;

@@ -47,8 +47,9 @@
         }
     });
 
+    // Always use the full campaign UUID from the URL
     const urlParams = new URLSearchParams(window.location.search);
-    const campaignId = urlParams.get('campaign_id');
+    const campaignId = urlParams.get('campaign_id'); // This should be a full UUID (36 chars)
 
     document.getElementById('connect-metamask').onclick = async function() {
         if (typeof window.ethereum !== 'undefined') {
@@ -66,6 +67,12 @@
     document.getElementById('donation-form').onsubmit = async function(e) {
         e.preventDefault();
         const user = getLoggedInUser();
+        // Validate campaignId is a full UUID
+        if (!campaignId || campaignId.length !== 36 || !campaignId.match(/^[0-9a-fA-F-]{36}$/)) {
+            messageDiv.textContent = 'Invalid campaign ID. Please use a valid campaign link.';
+            messageDiv.style.color = 'red';
+            return;
+        }
         const donationData = {
             campaign_id: campaignId,
             name: document.getElementById('name').value,
