@@ -12,7 +12,7 @@
             <h1>Donate to Campaign</h1>
         </div>
         
-        <div class="form-container" id="donation-form-container">
+    <form class="form-container" id="donation-form">
             <div class="form-group">
                 <label for="name">Your Name</label>
                 <input type="text" id="name" name="name" required placeholder="Enter your full name">
@@ -29,9 +29,9 @@
             </div>
             
             <div class="wallet-section">
-                <label for="wallet-address">MetaMask Wallet Address (for Reward)</label>
-                <input type="text" class="wallet-address" id="wallet-address" placeholder="Connect your wallet to receive ETH reward">
-                <button class="connect-btn" id="connect-metamask">Connect MetaMask</button>
+                <label for="wallet">MetaMask Wallet Address (for Reward)</label>
+                <input type="text" class="wallet-address" id="wallet" placeholder="Connect your wallet to receive ETH reward">
+                <button type="button" class="connect-btn" id="connect-metamask">Connect MetaMask</button>
             </div>
 
             <div class="form-group">
@@ -41,10 +41,10 @@
                 </label>
             </div>
             
-            <button class="donate-btn" id="donate-btn">Donate</button>
-        </div>
+            <button type="submit" class="donate-btn" id="donate-btn">Donate</button>
+    </form>
         
-        <div class="thank-you" id="thank-you" style="display:none;">
+    <div class="thank-you" id="thank-you" style="display:none;">
             <div class="success-icon">✓</div>
             <h2>Thank you for your donation!</h2>
             <p>Your contribution helps us make a difference. Your ETH reward has been sent to your wallet.</p>
@@ -90,9 +90,14 @@
             is_anonymous: document.getElementById('is_anonymous').checked,
             user_id: user ? user.user_id : null
         };
-        
-        const messageDiv = document.getElementById('donation-message');
-        
+
+        let messageDiv = document.getElementById('donation-message');
+        if (!messageDiv) {
+            messageDiv = document.createElement('div');
+            messageDiv.id = 'donation-message';
+            document.getElementById('donation-form').appendChild(messageDiv);
+        }
+
         try {
             const data = await createDonation(donationData);
             if (data.success) {
@@ -100,20 +105,18 @@
                 messageDiv.style.color = 'green';
                 document.getElementById('donation-form').reset();
                 setTimeout(() => {
-                    if (document.referrer) {
-                        window.location.href = document.referrer;
-                    } else {
-                        alert(result.error || 'Donation failed. Please try again.');
-                    }
-                } catch (err) {
-                    alert('An error occurred while submitting your donation.');
-                    console.error('Donation error:', err);
-                } finally {
-                    donateBtn.textContent = 'Donate';
-                    donateBtn.disabled = false;
-                }
-            });
-        });
+                    window.location.reload();
+                }, 1500);
+            } else {
+                messageDiv.textContent = data.error || 'Donation failed. Please try again.';
+                messageDiv.style.color = 'red';
+            }
+        } catch (err) {
+            messageDiv.textContent = 'An error occurred while submitting your donation.';
+            messageDiv.style.color = 'red';
+            console.error('Donation error:', err);
+        }
+    };
     </script>
 </body>
 </html>
