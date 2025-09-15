@@ -201,4 +201,74 @@ initializeDatabase().then(() => {
     });
 
     server.listen(port, () => { console.log(`Server running on http://localhost:${port}`); });
+    // Endpoint to provide available transaction types and statuses for dropdowns
+    app.get('/api/transaction-options', async (req, res) => {
+        try {
+            // Get distinct types and statuses from transactions table
+            const typeRes = await pool.query('SELECT DISTINCT type FROM transactions');
+            const statusRes = await pool.query('SELECT DISTINCT status FROM transactions');
+            const types = typeRes.rows.map(row => row.type).filter(Boolean);
+            const statuses = statusRes.rows.map(row => row.status).filter(Boolean);
+            res.json({ types, statuses });
+        } catch (err) {
+            console.error('Error fetching transaction options:', err);
+            res.status(500).json({ types: [], statuses: [] });
+        }
+    });
+    // Transaction search endpoint
+    app.get('/api/transactions', async (req, res) => {
+        // Query params: search, type, status, date
+        const { search = '', type = 'all', status = 'all', date = 'all', page = 1, pageSize = 10 } = req.query;
+        let whereClauses = [];
+        let params = [];
+
+        // Search by hash, address, or block number
+        if (search) {
+            whereClauses.push('(t.transaction_hash ILIKE $' + (params.length+1) + ' OR t.donor_name ILIKE $' + (params.length+1) + ' OR t.donor_email ILIKE $' + (params.length+1) + ' OR t.wallet_address ILIKE $' + (params.length+1) + ')');
+            params.push(`%${search}%`);
+        }
+        // Filter by type
+        if (type !== 'all') {
+            if (type === 'incoming') {
+                whereClauses.push('t.type = $' + (params.length+1));
+                params.push('incoming');
+            } else if (type === 'outgoing') {
+                whereClauses.push('t.type = $' + (params.length+1));
+                params.push('outgoing');
+            } else if (type === 'contract') {
+                whereClauses.push('t.type = $' + (params.length+1));
+                params.push('contract');
+            }
+        }
+        // Filter by status
+        if (status !== 'all') {
+            whereClauses.push('t.status = $' + (params.length+1));
+            params.push(status);
+        }
+        // Filter by date
+        if (date !== 'all') {
+            if (date === 'today') {
+                whereClauses.push('t.transaction_date::date = CURRENT_DATE');
+            } else if (date === 'week') {
+                whereClauses.push('t.transaction_date >= NOW() - INTERVAL ' + "'7 days'");
+            } else if (date === 'month') {
+                whereClauses.push('t.transaction_date >= NOW() - INTERVAL ' + "'1 month'");
+            }
+        }
+        let whereSQL = whereClauses.length ? 'WHERE ' + whereClauses.join(' AND ') : '';
+        // Pagination
+        const offset = (parseInt(page) - 1) * parseInt(pageSize);
+        const limitSQL = `LIMIT $${params.length+1} OFFSET $${params.length+2}`;
+        params.push(parseInt(pageSize));
+        params.push(offset);
+
+        const sql = `SELECT t.*, c.title as campaign_title FROM transactions t JOIN campaigns c ON t.campaign_id = c.campaign_id ${whereSQL} ORDER BY t.transaction_date DESC ${limitSQL}`;
+        try {
+            const result = await pool.query(sql, params);
+            res.json({ transactions: result.rows });
+        } catch (err) {
+            console.error('Error searching transactions:', err);
+            res.status(500).json({ error: 'Database error searching transactions.' });
+        }
+    });
 });
